@@ -1,0 +1,89 @@
+# Christmas Lights Rust
+
+## Dev env setup
+- Install Rust 1.79.0+
+- Add the required toolchain `rustup target add thumbv6m-none-eabi`
+- Install probe-rs
+```bash
+# Install cargo-binstall to avoid having to compile probe-rs-tools, which otherwise requires cmake
+cargo install cargo-binstall
+cargo binstall probe-rs-tools
+```
+- Install cargo-binutils
+
+```bash
+# Install binutils
+cargo binstall cargo-binutils
+rustup component add llvm-tools
+```
+
+- Connect the Raspberry Pi debug probe.
+- Wire the probe to the debugged board.
+  - Black to GND
+  - Orange to CLK/SWC
+  - Yellow to DATA/SWD
+- Test it's all working OK with `probe-rs list`. You should see a debug probe
+
+# Project setup
+Add the basic crates
+
+```bash
+# Basic stuff
+cargo add embedded-hal
+cargo add cortex-m
+cargo add cortex-m-rt
+cargo add pimoroni-plasma-2040
+cargo add rp2040-boot2
+cargo add rp2040-hal
+cargo add panic_halt
+
+# Debugging support
+cargo add defmt
+cargo add defmt-rtt
+
+```
+
+Create a .cargo/config.toml to define the platform
+```toml
+[build]
+target = "thumbv6m-none-eabi"
+
+[target.thumbv6m-none-eabi]
+rustflags = [
+    "-C", "link-arg=--nmagic",
+    "-C", "link-arg=-Tlink.x",
+    "-C", "link-arg=-Tdefmt.x",
+    "-C", "no-vectorize-loops",
+]
+runner = "probe-rs run --chip RP2040"
+
+[env]
+DEFMT_LOG = "trace"
+```
+
+Create a stub `main.rs`.
+
+```rust
+//! Blinks the 3 colour LEDs on a Pimoroni Plasma 2040 in sequence
+#![no_std]
+#![no_main]
+
+
+// defmt is used for efficient logging
+use defmt::*;
+use defmt_rtt as _;
+// panic halt causes panics to ... halt the CPU
+use panic_halt as _;
+
+// The BSP is required for reasons I don't understand
+use pimoroni_plasma_2040 as bsp;
+
+/// The `#[rp2040_hal::entry]` macro ensures the Cortex-M start-up code calls this function
+/// as soon as all global variables and the spinlock are initialised.
+#[rp2040_hal::entry]
+fn main() -> ! {
+    info!("Start");
+    loop {
+    }
+}
+```
