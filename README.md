@@ -1,14 +1,17 @@
 # Christmas Lights Rust
 
 ## Dev env setup
+
 - Install Rust 1.79.0+
 - Add the required toolchain `rustup target add thumbv6m-none-eabi`
 - Install probe-rs
+
 ```bash
 # Install cargo-binstall to avoid having to compile probe-rs-tools, which otherwise requires cmake
 cargo install cargo-binstall
 cargo binstall probe-rs-tools
 ```
+
 - Install cargo-binutils
 
 ```bash
@@ -25,6 +28,7 @@ rustup component add llvm-tools
 - Test it's all working OK with `probe-rs list`. You should see a debug probe
 
 # Project setup
+
 Add the basic crates
 
 ```bash
@@ -44,6 +48,7 @@ cargo add defmt-rtt
 ```
 
 Create a .cargo/config.toml to define the platform
+
 ```toml
 [build]
 target = "thumbv6m-none-eabi"
@@ -87,3 +92,14 @@ fn main() -> ! {
     }
 }
 ```
+
+## Deploying and debugging
+
+You can deploy using `cargo run` or `probe-rs download --chip RP2040 target\thumbv6m-none-eabi\debug\xmas_2024` followed by `probe-rs reset --chip RP2040`. You probably only want to do this for release builds.
+
+```bash
+probe-rs download --chip RP2040 target/thumbv6m-none-eabi/release/xmas_2024
+probe-rs reset --chip RP2040
+```
+
+To debug, simply hit F5. You'll start paused, so hit F5 again to start executing code

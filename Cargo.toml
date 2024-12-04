@@ -13,5 +13,5 @@ panic-halt = "1.0.0"
 pimoroni-plasma-2040 = "0.7.0"
 rp2040-boot2 = "0.3.0"
 rp2040-hal = "0.10.2"
-#cortex-m-rt = { workspace = true, optional = true }
-#rp2040-boot2 = { workspace = true, optional = true }
+smart-leds = "0.3.0"
+ws2812-pio = "0.8.0"
