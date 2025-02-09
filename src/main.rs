@@ -4,7 +4,6 @@
 use defmt::*;
 use defmt_rtt as _;
 use panic_halt as _;
-//use pimoroni_plasma_2040 as bsp;
 
 // Pull in any important traits
 use pimoroni_plasma_2040::hal::prelude::*;
@@ -16,6 +15,10 @@ use pimoroni_plasma_2040::hal::pac;
 // Import the Timer for Ws2812:
 use pimoroni_plasma_2040::hal::timer::Timer;
 
+// Import time measurement/duration traits
+use cortex_m::prelude::_embedded_hal_timer_CountDown;
+use rp2040_hal::fugit::ExtU32;
+
 // A shorter alias for the Hardware Abstraction Layer, which provides
 // higher-level drivers.
 use pimoroni_plasma_2040::hal;
@@ -25,14 +28,13 @@ use pimoroni_plasma_2040::hal;
 use pimoroni_plasma_2040::hal::pio::PIOExt;
 
 // Import useful traits to handle the ws2812 LEDs:
-use smart_leds::{SmartLedsWrite, RGB8};
+use smart_leds::SmartLedsWrite;
 
 // Import the actual crate to handle the Ws2812 protocol:
 use ws2812_pio::Ws2812;
-
-// Currently 3 consecutive LEDs are driven by this example
-// to keep the power draw compatible with USB:
-const STRIP_LEN: usize = 3;
+use xmas_2024::base::IFixedPoint;
+use xmas_2024::base::LedPattern;
+use xmas_2024::patterns::speed_change::SpeedChange;
 
 /// The `#[rp2040_hal::entry]` macro ensures the Cortex-M start-up code calls this function
 /// as soon as all global variables and the spinlock are initialised.
@@ -42,7 +44,6 @@ fn main() -> ! {
 
     // Grab our singleton objects
     let mut pac = pac::Peripherals::take().unwrap();
-    let core = pac::CorePeripherals::take().unwrap();
 
     // Set up the watchdog driver - needed by the clock setup code
     let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
@@ -73,10 +74,6 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    // Setup a delay for the LED blink signals:
-    let mut frame_delay =
-        cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
-
     // Create a count down timer for the Ws2812 instance:
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 
@@ -93,23 +90,34 @@ fn main() -> ! {
         timer.count_down(),
     );
 
-    let mut leds: [RGB8; STRIP_LEN] = [(0, 0, 0).into(); STRIP_LEN];
-    let mut frame = 0usize;
+    let mut pattern = SpeedChange::new();
+
+    // Aim for 100hz
+    let dt: IFixedPoint = IFixedPoint::from_num(1) / 100;
+    let target_frame_time = 10u32.millis();
 
     loop {
-        for i in 0..STRIP_LEN {
-            if i == frame % STRIP_LEN {
-                leds[i] = RGB8::new(255, 255, 255);
-            } else {
-                leds[i] = RGB8::new(0, 0, 0);
-            }
+        let t0 = timer.get_counter();
+
+        let mut time_pad = timer.count_down();
+        time_pad.start(target_frame_time);
+
+        let leds = pattern.update(dt);
+
+        ws.write(leds.into_iter()).unwrap();
+
+        let t1 = timer.get_counter();
+
+        let d0 = t1 - t0;
+        if d0 > target_frame_time {
+            warn!(
+                "Frame overrun {}µs > {}µs",
+                d0.to_micros(),
+                target_frame_time.to_micros()
+            );
         }
-        ws.write(leds.clone().into_iter()).unwrap();
 
-        // Advance frame
-        frame = frame.wrapping_add(1);
-
-        // Wait for 10ms
-        frame_delay.delay_ms(500);
+        // Wait for the end of the frame
+        let _ = nb::block!(time_pad.wait());
     }
 }

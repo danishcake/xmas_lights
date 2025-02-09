@@ -1,5 +1,15 @@
 # Christmas Lights Rust
 
+## The board
+
+We're using a Pimoroni Plasma 2040, which is an RP2040 derive board with useful circuitry for driving LEDs.
+
+- Cortex-M0+ core
+- thumbv6m instruction set
+- 264kB of RAM
+- 133MHz Dual Core CPU
+- 2MB of flash
+
 ## Dev env setup
 
 - Install Rust 1.79.0+
